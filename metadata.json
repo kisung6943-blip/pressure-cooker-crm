@@ -1,0 +1,5 @@
+{
+  "name": "Pressure Cooker AS Manager",
+  "description": "Customer and AS management web app for pressure cooker repair service.",
+  "requestFramePermissions": []
+}
