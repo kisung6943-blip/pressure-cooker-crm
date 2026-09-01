@@ -1,11 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Client, ASStatus } from '../types';
 import { generateId } from '../lib/utils';
-import { fetchClientsFromCloud, saveClientsToCloud } from '../lib/supabase';
 
 interface AppContextType {
   clients: Client[];
-  isSyncing: boolean;
   addClient: (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateClient: (id: string, client: Partial<Client>) => void;
   deleteClient: (id: string) => void;
@@ -57,7 +55,6 @@ const initialClients: Client[] = [
 ];
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [isSyncing, setIsSyncing] = useState<boolean>(true);
   const [clients, setClients] = useState<Client[]>(() => {
     const saved = localStorage.getItem('as-clients');
     if (saved) {
@@ -73,49 +70,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return initialClients;
   });
 
-  // Initial cloud sync & merger
   useEffect(() => {
-    let isMounted = true;
-
-    async function syncCloud() {
-      try {
-        setIsSyncing(true);
-        const cloudClients = await fetchClientsFromCloud();
-
-        if (!isMounted) return;
-
-        if (cloudClients && cloudClients.length > 0) {
-          setClients(cloudClients);
-          localStorage.setItem('as-clients', JSON.stringify(cloudClients));
-        } else {
-          // If cloud has no data, upload local data or initial sample data to cloud
-          const dataToUpload = clients.length > 0 ? clients : initialClients;
-          setClients(dataToUpload);
-          localStorage.setItem('as-clients', JSON.stringify(dataToUpload));
-          await saveClientsToCloud(dataToUpload);
-        }
-      } catch (err) {
-        console.error('Cloud sync error:', err);
-      } finally {
-        if (isMounted) {
-          setIsSyncing(false);
-        }
-      }
-    }
-
-    syncCloud();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  // Helper to persist both locally and to Supabase cloud
-  const syncAndSetClients = (newClients: Client[]) => {
-    setClients(newClients);
-    localStorage.setItem('as-clients', JSON.stringify(newClients));
-    saveClientsToCloud(newClients);
-  };
+    localStorage.setItem('as-clients', JSON.stringify(clients));
+  }, [clients]);
 
   const addClient = (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newClient: Client = {
@@ -124,22 +81,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    const updated = [newClient, ...clients];
-    syncAndSetClients(updated);
+    setClients((prev) => [newClient, ...prev]);
   };
 
   const updateClient = (id: string, updates: Partial<Client>) => {
-    const updated = clients.map((client) =>
-      client.id === id
-        ? { ...client, ...updates, updatedAt: new Date().toISOString() }
-        : client
+    setClients((prev) =>
+      prev.map((client) =>
+        client.id === id
+          ? { ...client, ...updates, updatedAt: new Date().toISOString() }
+          : client
+      )
     );
-    syncAndSetClients(updated);
   };
 
   const deleteClient = (id: string) => {
-    const updated = clients.filter((client) => client.id !== id);
-    syncAndSetClients(updated);
+    setClients((prev) => prev.filter((client) => client.id !== id));
   };
 
   const updateClientStatus = (id: string, status: ASStatus) => {
@@ -150,7 +106,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider
       value={{
         clients,
-        isSyncing,
         addClient,
         updateClient,
         deleteClient,
@@ -170,7 +125,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             const text = await file.text();
             const data = JSON.parse(text);
             if (Array.isArray(data)) {
-              syncAndSetClients(data);
+              setClients(data);
+              localStorage.setItem('as-clients', JSON.stringify(data));
               return true;
             }
             return false;
