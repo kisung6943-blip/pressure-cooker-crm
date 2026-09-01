@@ -20,8 +20,10 @@ export interface Client {
   status: ASStatus;
   price: number;
   trackingNumber?: string;
+  trackingImageUrl?: string;
   quotationUrl?: string;
   productImageUrl?: string;
+  productImageUrls?: string[];
   createdAt: string;
   updatedAt: string;
 }
