@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Client, ASStatus, STATUSES } from '../types';
-import { X } from 'lucide-react';
+import { X, Camera, FileText } from 'lucide-react';
 
 interface ClientFormModalProps {
   isOpen: boolean;
@@ -20,6 +20,7 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
     price: 0,
     trackingNumber: '',
     quotationUrl: '',
+    productImageUrl: '',
   });
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
         price: initialData.price,
         trackingNumber: initialData.trackingNumber || '',
         quotationUrl: initialData.quotationUrl || '',
+        productImageUrl: initialData.productImageUrl || '',
       });
     } else {
       setFormData({
@@ -46,20 +48,71 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
         price: 0,
         trackingNumber: '',
         quotationUrl: '',
+        productImageUrl: '',
       });
     }
   }, [initialData, isOpen]);
 
+  const compressImage = (file: File, callback: (base64: string) => void) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1000;
+        const MAX_HEIGHT = 1000;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          callback(dataUrl);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleProductImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert('파일 크기가 너무 큽니다. 10MB 이하의 이미지를 올려주세요.');
+        return;
+      }
+      compressImage(file, (base64) => {
+        setFormData((prev) => ({ ...prev, productImageUrl: base64 }));
+      });
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('파일 크기가 너무 큽니다. 2MB 이하의 파일을 업로드해주세요.');
+      if (file.size > 5 * 1024 * 1024) {
+        alert('파일 크기가 너무 큽니다. 5MB 이하의 파일을 업로드해주세요.');
         return;
       }
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData({ ...formData, quotationUrl: reader.result as string });
+        setFormData((prev) => ({ ...prev, quotationUrl: reader.result as string }));
       };
       reader.readAsDataURL(file);
     }
@@ -74,9 +127,9 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <h3 className="text-lg font-semibold text-gray-900">
             {initialData ? '고객 정보 수정' : '새 고객 등록'}
           </h3>
@@ -84,7 +137,7 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
             <X className="w-5 h-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">이름</label>
             <input
@@ -125,6 +178,39 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
               onChange={(e) => setFormData({ ...formData, model: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">압력솥 사진 (선택)</label>
+            <div className="flex items-center space-x-3">
+              <label className="cursor-pointer inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                <Camera className="w-4 h-4 mr-1.5 text-gray-500" />
+                사진 선택
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProductImageChange}
+                  className="hidden"
+                />
+              </label>
+              {formData.productImageUrl ? (
+                <div className="relative flex items-center space-x-2">
+                  <img
+                    src={formData.productImageUrl}
+                    alt="압력솥 사진 미리보기"
+                    className="w-12 h-12 object-cover rounded-md border border-gray-200 shadow-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, productImageUrl: '' })}
+                    className="text-xs text-red-500 hover:text-red-700 underline"
+                  >
+                    삭제
+                  </button>
+                </div>
+              ) : (
+                <span className="text-xs text-gray-400">선택된 사진 없음</span>
+              )}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">AS 내용</label>
@@ -205,7 +291,7 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
               />
             </div>
           )}
-          <div className="pt-4 flex justify-end space-x-3">
+          <div className="pt-4 flex justify-end space-x-3 shrink-0">
             <button
               type="button"
               onClick={onClose}

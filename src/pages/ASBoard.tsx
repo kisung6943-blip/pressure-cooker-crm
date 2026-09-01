@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useApp } from '../context/AppContext';
 import { STATUSES, ASStatus } from '../types';
 import { cn } from '../lib/utils';
-import { Clock, Phone } from 'lucide-react';
+import { Clock, Phone, Camera, X } from 'lucide-react';
 
 export function ASBoard() {
   const { clients, updateClientStatus } = useApp();
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const onDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -70,8 +71,23 @@ export function ASBoard() {
                               >
                                 <div className="flex justify-between items-start mb-2">
                                   <h4 className="text-sm font-medium text-gray-900">{client.name}</h4>
-                                  <span className="text-xs text-gray-500">{client.model}</span>
+                                  <span className="text-xs text-gray-500 font-medium">{client.model}</span>
                                 </div>
+                                
+                                {client.productImageUrl && (
+                                  <div className="mb-2 relative rounded-md overflow-hidden border border-gray-100 bg-gray-50 max-h-32">
+                                    <img
+                                      src={client.productImageUrl}
+                                      alt="압력솥 사진"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setPreviewImage(client.productImageUrl!);
+                                      }}
+                                      className="w-full h-24 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                    />
+                                  </div>
+                                )}
+
                                 <p className="text-xs text-gray-600 line-clamp-2 mb-3">
                                   {client.asDetails}
                                 </p>
@@ -112,6 +128,28 @@ export function ASBoard() {
           </div>
         </DragDropContext>
       </div>
+
+      {/* Image Preview Lightbox */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="relative max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl bg-white p-2">
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-4 right-4 z-10 p-2 bg-black/50 text-white hover:bg-black/70 rounded-full transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={previewImage}
+              alt="압력솥 사진 확대보기"
+              className="max-w-full max-h-[85vh] object-contain rounded-xl"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

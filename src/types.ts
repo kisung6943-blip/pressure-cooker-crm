@@ -21,6 +21,7 @@ export interface Client {
   price: number;
   trackingNumber?: string;
   quotationUrl?: string;
+  productImageUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ClientFormModal } from '../components/ClientFormModal';
 import { Client } from '../types';
-import { Plus, Edit2, Trash2, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Camera, X } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 
 export function ClientManagement() {
@@ -10,6 +10,7 @@ export function ClientManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const handleAdd = () => {
     setEditingClient(undefined);
@@ -77,7 +78,7 @@ export function ClientManagement() {
             <thead className="bg-white">
               <tr>
                 <th scope="col" className="px-8 py-4 text-left text-[13px] font-medium text-[#86868b] uppercase tracking-wider">고객명/연락처</th>
-                <th scope="col" className="px-8 py-4 text-left text-[13px] font-medium text-[#86868b] uppercase tracking-wider">모델/AS내용</th>
+                <th scope="col" className="px-8 py-4 text-left text-[13px] font-medium text-[#86868b] uppercase tracking-wider">모델/사진/AS내용</th>
                 <th scope="col" className="px-8 py-4 text-left text-[13px] font-medium text-[#86868b] uppercase tracking-wider">상태</th>
                 <th scope="col" className="px-8 py-4 text-left text-[13px] font-medium text-[#86868b] uppercase tracking-wider">비용</th>
                 <th scope="col" className="relative px-8 py-4"><span className="sr-only">관리</span></th>
@@ -98,8 +99,31 @@ export function ClientManagement() {
                       <div className="text-[13px] text-[#86868b] mt-0.5">{client.contact}</div>
                     </td>
                     <td className="px-8 py-5">
-                      <div className="text-[15px] text-[#1d1d1f] font-medium">{client.model}</div>
-                      <div className="text-[13px] text-[#86868b] mt-0.5 truncate max-w-xs">{client.asDetails}</div>
+                      <div className="flex items-start space-x-3">
+                        {client.productImageUrl && (
+                          <img
+                            src={client.productImageUrl}
+                            alt="압력솥 사진"
+                            onClick={() => setPreviewImage(client.productImageUrl!)}
+                            className="w-12 h-12 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity shrink-0 mt-0.5"
+                          />
+                        )}
+                        <div>
+                          <div className="text-[15px] text-[#1d1d1f] font-medium flex items-center">
+                            {client.model}
+                            {client.productImageUrl && (
+                              <button
+                                onClick={() => setPreviewImage(client.productImageUrl!)}
+                                className="ml-2 text-[#0071e3] hover:text-[#0077ED] inline-flex items-center text-xs font-normal"
+                              >
+                                <Camera className="w-3.5 h-3.5 mr-0.5" />
+                                사진보기
+                              </button>
+                            )}
+                          </div>
+                          <div className="text-[13px] text-[#86868b] mt-0.5 truncate max-w-xs">{client.asDetails}</div>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-8 py-5 whitespace-nowrap">
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-[13px] font-medium bg-[#f5f5f7] text-[#1d1d1f]">
@@ -149,6 +173,28 @@ export function ClientManagement() {
         onSubmit={handleSubmit}
         initialData={editingClient}
       />
+
+      {/* Image Preview Lightbox */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="relative max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl bg-white p-2">
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-4 right-4 z-10 p-2 bg-black/50 text-white hover:bg-black/70 rounded-full transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={previewImage}
+              alt="압력솥 사진 확대보기"
+              className="max-w-full max-h-[85vh] object-contain rounded-xl"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
