@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Client, ASStatus, STATUSES } from '../types';
-import { X, Camera, FileText, Upload, Image as ImageIcon, Trash2, Plus, Maximize2 } from 'lucide-react';
+import { X, Camera, FileText, Upload, Image as ImageIcon, Trash2, Plus, Maximize2, RotateCw } from 'lucide-react';
 
 interface ClientFormModalProps {
   isOpen: boolean;
@@ -26,6 +26,7 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
   });
 
   const [modalLightbox, setModalLightbox] = useState<{ url: string; title: string } | null>(null);
+  const [rotationDeg, setRotationDeg] = useState(0);
 
   useEffect(() => {
     if (initialData) {
@@ -103,6 +104,53 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
       img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
+  };
+
+  const rotateBase64 = (base64Url: string, degrees: number, callback: (rotatedBase64: string) => void) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      if (degrees === 90 || degrees === 270) {
+        canvas.width = img.height;
+        canvas.height = img.width;
+      } else {
+        canvas.width = img.width;
+        canvas.height = img.height;
+      }
+
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((degrees * Math.PI) / 180);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+
+      callback(canvas.toDataURL('image/jpeg', 0.88));
+    };
+    img.src = base64Url;
+  };
+
+  const handleRotateTrackingImage = () => {
+    if (!formData.trackingImageUrl) return;
+    rotateBase64(formData.trackingImageUrl, 90, (rotated) => {
+      setFormData((prev) => ({ ...prev, trackingImageUrl: rotated }));
+    });
+  };
+
+  const handleRotateProductImage = (indexToRotate: number) => {
+    const targetUrl = formData.productImageUrls?.[indexToRotate];
+    if (!targetUrl) return;
+    rotateBase64(targetUrl, 90, (rotated) => {
+      setFormData((prev) => {
+        const updated = [...(prev.productImageUrls || [])];
+        updated[indexToRotate] = rotated;
+        return {
+          ...prev,
+          productImageUrls: updated,
+          productImageUrl: updated[0] || '',
+        };
+      });
+    });
   };
 
   const handleMultipleProductImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -238,7 +286,7 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
             />
           </div>
 
-          {/* 압력솥 사진 다중 업로드 (여러 장 가능) */}
+          {/* 압력솥 사진 다중 업로드 (여러 장 가능 + 회전 기능) */}
           <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-200">
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-gray-800 flex items-center">
@@ -254,13 +302,27 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
                   <img
                     src={url}
                     alt={`압력솥 사진 ${idx + 1}`}
-                    onClick={() => setModalLightbox({ url, title: `압력솥 사진 ${idx + 1}` })}
+                    onClick={() => {
+                      setRotationDeg(0);
+                      setModalLightbox({ url, title: `압력솥 사진 ${idx + 1}` });
+                    }}
                     className="w-full h-full object-cover rounded-md cursor-pointer hover:scale-105 transition-transform"
                   />
-                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-1">
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-1.5">
                     <button
                       type="button"
-                      onClick={() => setModalLightbox({ url, title: `압력솥 사진 ${idx + 1}` })}
+                      onClick={() => handleRotateProductImage(idx)}
+                      className="p-1 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                      title="90도 회전"
+                    >
+                      <RotateCw className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRotationDeg(0);
+                        setModalLightbox({ url, title: `압력솥 사진 ${idx + 1}` });
+                      }}
                       className="p-1 bg-white/90 text-gray-800 rounded-full hover:bg-white transition-colors"
                       title="크게보기"
                     >
@@ -290,7 +352,7 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
                 />
               </label>
             </div>
-            <p className="text-[11px] text-gray-500 mt-2">여러 장의 사진을 한 번에 선택하거나 계속 추가할 수 있습니다.</p>
+            <p className="text-[11px] text-gray-500 mt-2">마우스 호버 시 🔄 회전 아이콘으로 90°씩 회전할 수 있습니다.</p>
           </div>
 
           <div>
@@ -363,7 +425,7 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
             </div>
           </div>
 
-          {/* 송장 이미지 업로드 (모든 글자와 내용이 100% 보이도록 조율) */}
+          {/* 송장 이미지 업로드 및 회전 기능 */}
           <div className="bg-blue-50/70 p-4 rounded-xl border border-blue-200">
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-semibold text-blue-950 flex items-center">
@@ -371,40 +433,66 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
                 송장 이미지 (택배 송장/영수증 전체 사진)
               </label>
               {formData.trackingImageUrl && (
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, trackingImageUrl: '' })}
-                  className="text-xs text-red-600 hover:text-red-800 font-medium underline"
-                >
-                  사진 삭제
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={handleRotateTrackingImage}
+                    className="inline-flex items-center px-2 py-1 text-xs font-semibold text-blue-800 bg-white border border-blue-300 rounded-md hover:bg-blue-50 transition-colors shadow-2xs"
+                  >
+                    <RotateCw className="w-3.5 h-3.5 mr-1 text-blue-600" />
+                    90° 회전하기
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, trackingImageUrl: '' })}
+                    className="text-xs text-red-600 hover:text-red-800 font-medium underline"
+                  >
+                    사진 삭제
+                  </button>
+                </div>
               )}
             </div>
 
             {formData.trackingImageUrl ? (
               <div className="flex flex-col space-y-2">
-                <div className="rounded-lg overflow-hidden border border-blue-300 bg-white p-2 flex items-center justify-center">
+                <div className="rounded-lg overflow-hidden border border-blue-300 bg-white p-2 flex items-center justify-center min-h-[160px]">
                   <img
                     src={formData.trackingImageUrl}
                     alt="송장 사진 전체보기"
-                    className="w-full max-h-80 object-contain rounded-md cursor-pointer hover:opacity-95"
-                    onClick={() => setModalLightbox({ url: formData.trackingImageUrl!, title: '택배 송장 사진 (전체 내용)' })}
+                    className="w-full max-h-80 object-contain rounded-md cursor-pointer hover:opacity-95 transition-transform"
+                    onClick={() => {
+                      setRotationDeg(0);
+                      setModalLightbox({ url: formData.trackingImageUrl!, title: '택배 송장 사진 (전체 내용)' });
+                    }}
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setModalLightbox({ url: formData.trackingImageUrl!, title: '택배 송장 사진 (전체 내용)' })}
-                  className="w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md shadow-xs flex items-center justify-center transition-colors"
-                >
-                  <Maximize2 className="w-3.5 h-3.5 mr-1" />
-                  송장글씨 선명하게 전면 크게보기 (클릭)
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={handleRotateTrackingImage}
+                    className="flex-1 py-1.5 bg-white border border-blue-300 hover:bg-blue-50 text-blue-900 text-xs font-semibold rounded-md shadow-xs flex items-center justify-center transition-colors"
+                  >
+                    <RotateCw className="w-3.5 h-3.5 mr-1 text-blue-600" />
+                    송장 90도 회전
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRotationDeg(0);
+                      setModalLightbox({ url: formData.trackingImageUrl!, title: '택배 송장 사진 (전체 내용)' });
+                    }}
+                    className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md shadow-xs flex items-center justify-center transition-colors"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5 mr-1" />
+                    송장 전면 크게보기
+                  </button>
+                </div>
               </div>
             ) : (
               <label className="cursor-pointer border-2 border-dashed border-blue-300 hover:border-blue-500 rounded-lg p-4 flex flex-col items-center justify-center bg-white transition-colors">
                 <Upload className="w-6 h-6 text-blue-600 mb-1" />
                 <span className="text-xs font-semibold text-blue-950">송장 이미지 첨부 (클릭)</span>
-                <span className="text-[11px] text-blue-700 mt-0.5">글씨가 짤리지 않고 전체가 선명하게 보입니다</span>
+                <span className="text-[11px] text-blue-700 mt-0.5">글씨가 짤리지 않고 전체가 보이며, 90도 회전이 가능합니다</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -445,27 +533,43 @@ export function ClientFormModal({ isOpen, onClose, onSubmit, initialData }: Clie
         </form>
       </div>
 
-      {/* Internal Modal Lightbox */}
+      {/* Internal Modal Lightbox with Rotation Control */}
       {modalLightbox && (
         <div
           className="fixed inset-0 z-60 flex items-center justify-center bg-black/85 backdrop-blur-xs p-4"
           onClick={() => setModalLightbox(null)}
         >
-          <div className="relative max-w-5xl max-h-[92vh] overflow-hidden rounded-2xl shadow-2xl bg-white p-3 flex flex-col items-center">
+          <div 
+            className="relative max-w-5xl max-h-[92vh] overflow-hidden rounded-2xl shadow-2xl bg-white p-3 flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="w-full flex items-center justify-between px-3 py-2 border-b border-gray-100 mb-2">
               <span className="text-sm font-bold text-gray-800">{modalLightbox.title}</span>
-              <button
-                onClick={() => setModalLightbox(null)}
-                className="p-1 text-gray-500 hover:text-gray-900 rounded-full transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setRotationDeg((prev) => (prev + 90) % 360)}
+                  className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-xs font-semibold rounded-md transition-colors flex items-center"
+                >
+                  <RotateCw className="w-3.5 h-3.5 mr-1" />
+                  90° 회전하기
+                </button>
+                <button
+                  onClick={() => setModalLightbox(null)}
+                  className="p-1 text-gray-500 hover:text-gray-900 rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
-            <img
-              src={modalLightbox.url}
-              alt="선명한 원본 사진"
-              className="max-w-full max-h-[82vh] object-contain rounded-xl"
-            />
+            <div className="overflow-auto flex items-center justify-center p-2 min-h-[300px] max-h-[80vh]">
+              <img
+                src={modalLightbox.url}
+                alt="선명한 원본 사진"
+                style={{ transform: `rotate(${rotationDeg}deg)` }}
+                className="max-w-full max-h-[75vh] object-contain rounded-xl transition-transform duration-200"
+              />
+            </div>
           </div>
         </div>
       )}

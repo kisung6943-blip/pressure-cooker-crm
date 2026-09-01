@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ClientFormModal } from '../components/ClientFormModal';
 import { Client } from '../types';
-import { Plus, Edit2, Trash2, Search, Camera, FileText, X, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Camera, FileText, X, Image as ImageIcon, ChevronLeft, ChevronRight, RotateCw } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 
 export function ClientManagement() {
@@ -13,6 +13,7 @@ export function ClientManagement() {
   
   // Gallery Lightbox State
   const [gallery, setGallery] = useState<{ images: string[]; title: string; index: number } | null>(null);
+  const [rotationDeg, setRotationDeg] = useState(0);
 
   const handleAdd = () => {
     setEditingClient(undefined);
@@ -47,6 +48,7 @@ export function ClientManagement() {
 
   const openGallery = (images: string[], title: string, initialIdx = 0) => {
     if (images.length === 0) return;
+    setRotationDeg(0);
     setGallery({ images, title, index: initialIdx });
   };
 
@@ -59,7 +61,7 @@ export function ClientManagement() {
         </div>
         <button
           onClick={handleAdd}
-          className="inline-flex items-center px-5 py-2.5 text-[15px] font-medium text-white bg-[#0071e3] rounded-full shadow-sm hover:bg-[#0077ED] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0071e3] transition-colors"
+          className="inline-flex items-center px-5 py-2.5 text-[15px] font-medium text-[#ffffff] bg-[#0071e3] rounded-full shadow-sm hover:bg-[#0077ED] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0071e3] transition-colors"
         >
           <Plus className="w-5 h-5 mr-2" />새 고객 등록
         </button>
@@ -216,7 +218,7 @@ export function ClientManagement() {
         initialData={editingClient}
       />
 
-      {/* Gallery Lightbox with Navigation for Multiple Photos */}
+      {/* Gallery Lightbox with Rotation Control */}
       {gallery && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xs p-4"
@@ -235,31 +237,47 @@ export function ClientManagement() {
                   </span>
                 )}
               </span>
-              <button
-                onClick={() => setGallery(null)}
-                className="p-1 text-gray-500 hover:text-gray-900 rounded-full transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setRotationDeg((prev) => (prev + 90) % 360)}
+                  className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-xs font-semibold rounded-md transition-colors flex items-center"
+                >
+                  <RotateCw className="w-3.5 h-3.5 mr-1" />
+                  90° 회전하기
+                </button>
+                <button
+                  onClick={() => setGallery(null)}
+                  className="p-1 text-gray-500 hover:text-gray-900 rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
 
-            <div className="relative w-full flex-1 flex items-center justify-center min-h-[350px] max-h-[78vh] bg-black/5 rounded-xl overflow-hidden p-2">
+            <div className="relative w-full flex-1 flex items-center justify-center min-h-[350px] max-h-[78vh] bg-black/5 rounded-xl overflow-hidden p-4">
               <img
                 src={gallery.images[gallery.index]}
                 alt="확대보기 사진"
-                className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-sm"
+                style={{ transform: `rotate(${rotationDeg}deg)` }}
+                className="max-w-full max-h-[72vh] object-contain rounded-lg shadow-sm transition-transform duration-200"
               />
 
               {gallery.images.length > 1 && (
                 <>
                   <button
-                    onClick={() => setGallery({ ...gallery, index: (gallery.index - 1 + gallery.images.length) % gallery.images.length })}
+                    onClick={() => {
+                      setRotationDeg(0);
+                      setGallery({ ...gallery, index: (gallery.index - 1 + gallery.images.length) % gallery.images.length });
+                    }}
                     className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all shadow-md"
                   >
                     <ChevronLeft className="w-6 h-6" />
                   </button>
                   <button
-                    onClick={() => setGallery({ ...gallery, index: (gallery.index + 1) % gallery.images.length })}
+                    onClick={() => {
+                      setRotationDeg(0);
+                      setGallery({ ...gallery, index: (gallery.index + 1) % gallery.images.length });
+                    }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all shadow-md"
                   >
                     <ChevronRight className="w-6 h-6" />
@@ -275,7 +293,10 @@ export function ClientManagement() {
                     key={idx}
                     src={img}
                     alt={`썸네일 ${idx + 1}`}
-                    onClick={() => setGallery({ ...gallery, index: idx })}
+                    onClick={() => {
+                      setRotationDeg(0);
+                      setGallery({ ...gallery, index: idx });
+                    }}
                     className={`w-14 h-14 object-cover rounded-lg border-2 cursor-pointer transition-all ${
                       idx === gallery.index ? 'border-[#0071e3] scale-105 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'
                     }`}
